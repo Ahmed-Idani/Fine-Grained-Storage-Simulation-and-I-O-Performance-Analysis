@@ -1,21 +1,20 @@
-"""
-Three different approaches to writing and reading sub-records on disk.
-"""
-
 import json
 import os
 import shutil
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+SINGLE_FILE_PATH = os.path.join(BASE_DIR, "results/strategy_a.bin")
+SINGLE_INDEX_PATH = os.path.join(BASE_DIR, "results/strategy_a_index.json")
 
-# Strategy A - Single Large File
+CHUNK_DIR = os.path.join(BASE_DIR, "results/strategy_b_chunks")
+CHUNK_INDEX_PATH = os.path.join(BASE_DIR, "results/strategy_b_index.json")
+CHUNK_SIZE = 1000
 
-SINGLE_FILE_PATH = "results/strategy_a.bin"
-SINGLE_INDEX_PATH = "results/strategy_a_index.json"
+INDIVIDUAL_DIR = os.path.join(BASE_DIR, "results/strategy_c_individual")
 
 
 def write_single_file(records):
-    """Write all records sequentially into one binary file + a JSON index."""
     index = {}
     with open(SINGLE_FILE_PATH, "wb") as f:
         for r in records:
@@ -34,22 +33,13 @@ def load_single_index():
 
 
 def read_record_single_file(index, record_id):
-    """Read a single record from the large binary file using seek."""
     entry = index[record_id]
     with open(SINGLE_FILE_PATH, "rb") as f:
         f.seek(entry["offset"])
         return f.read(entry["size"])
 
 
-# Strategy B - Chunked Files
-
-CHUNK_DIR = "results/strategy_b_chunks"
-CHUNK_INDEX_PATH = "results/strategy_b_index.json"
-CHUNK_SIZE = 1000
-
-
 def write_chunked_files(records):
-    """Write records into chunk files of 1000 records each + a JSON index."""
     if os.path.exists(CHUNK_DIR):
         shutil.rmtree(CHUNK_DIR)
     os.makedirs(CHUNK_DIR, exist_ok=True)
@@ -79,7 +69,6 @@ def load_chunked_index():
 
 
 def read_record_chunked(index, record_id):
-    """Read a single record from the appropriate chunk file."""
     entry = index[record_id]
     chunk_file = os.path.join(CHUNK_DIR, f"chunk_{entry['chunk']:04d}.bin")
     with open(chunk_file, "rb") as f:
@@ -87,14 +76,7 @@ def read_record_chunked(index, record_id):
         return f.read(entry["size"])
 
 
-
-# Strategy C - Individual Files
-
-INDIVIDUAL_DIR = "results/strategy_c_individual"
-
-
 def write_individual_files(records):
-    """Write each record to its own file."""
     if os.path.exists(INDIVIDUAL_DIR):
         shutil.rmtree(INDIVIDUAL_DIR)
     os.makedirs(INDIVIDUAL_DIR, exist_ok=True)
@@ -106,7 +88,6 @@ def write_individual_files(records):
 
 
 def read_record_individual(record_id):
-    """Read a single record by constructing its filename."""
     path = os.path.join(INDIVIDUAL_DIR, f"record_{record_id:08d}.bin")
     with open(path, "rb") as f:
         return f.read()

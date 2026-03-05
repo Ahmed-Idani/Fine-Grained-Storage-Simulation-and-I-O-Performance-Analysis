@@ -1,24 +1,17 @@
-"""
-STEP 1: Data Generation
-Generate 100,000 simulated detector sub-records for DUNE storage benchmarking.
-"""
-
 import numpy as np
 
 
 def generate_subrecords(n=100_000, seed=42):
-    """Generate n sub-records of random bytes with sizes between 1024-2048 bytes."""
     rng = np.random.default_rng(seed)
     records = []
     for i in range(n):
-        size = int(rng.integers(1024, 2049))  # 1024 to 2048 inclusive
+        size = int(rng.integers(1024, 2049))
         data = rng.integers(0, 256, size=size, dtype=np.uint8).tobytes()
         records.append({"id": i, "size": size, "data": data})
     return records
 
 
 def print_summary(records):
-    """Print summary info about generated records."""
     total_bytes = sum(r["size"] for r in records)
     print(f"Generated {len(records):,} sub-records")
     print(f"Total data volume: {total_bytes / 1e6:.1f} MB")
