@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.vscode/
+.idea/
+draft-me/
+task.md
+results/strategy_a.bin
+results/strategy_a_index.json
+results/strategy_b_chunks/
+results/strategy_b_index.json
+results/strategy_c_individual/
