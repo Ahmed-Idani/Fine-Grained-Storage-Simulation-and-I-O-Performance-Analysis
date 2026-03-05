@@ -103,13 +103,17 @@ The 5x penalty for individual files comes from filesystem metadata operations. E
 
 For Strategy A, these costs are paid once. For Strategy C, they're paid 100,000 times.
 
-Disk I/O metrics confirm this: Strategy C triggered 245.5 MB of physical disk writes and 2,016 write operations, while Strategy A completed entirely within the page cache (0 bytes to disk).
+Disk I/O metrics confirm this: Strategy C triggered 277 MB of physical disk writes and 2,363 write operations. The metadata operations from creating 100,000 files generated enough journal pressure to force the kernel to flush both metadata and data content to physical disk, while Strategies A and B kept all writes deferred in the page cache.
 
 ### 4.2 Sequential Read Performance
 
-Strategy A benefits from **kernel read-ahead**: when the OS detects sequential access patterns, it prefetches the next several pages from disk before they're requested. This means the data is already in the page cache when `f.read()` is called.
+Note that the benchmark opens and closes the file handle for every individual record read, measuring worst-case per-record access cost. All reads are served from the warm page cache (populated during the preceding write phase).
 
-Strategy C cannot benefit from read-ahead because each `open()` call starts a new I/O context. The OS has no way to predict which file will be opened next.
+Strategy A benefits from **dentry and inode cache locality**: all 100,000 `open()` calls target the same single file, so the kernel's dentry cache (filename-to-inode mapping) and inode cache are hit on every call after the first. This makes repeated opens of the same file nearly free.
+
+Strategy B opens 100 different chunk files, each ~1,000 times. The 100 dentries and inodes remain cached, but there is slightly more cache pressure than Strategy A's single entry.
+
+Strategy C opens 100,000 unique files, requiring 100,000 distinct dentry lookups in a directory containing 100,000 entries. Even with ext4's HTree indexing, the sheer number of unique lookups creates significant dentry/inode cache pressure, explaining the higher latency.
 
 ### 4.3 Random Read Convergence
 
@@ -147,7 +151,7 @@ DUNE's Far Detector at the Sanford Underground Research Facility will consist of
 
 At 10^9 records/year:
 - **Inode exhaustion:** Standard ext4 filesystems allocate ~1 inode per 16 KB of partition size. A 10 TB partition supports ~655 million inodes, fewer than a single year of DUNE data.
-- **Directory performance:** Linux directory entries use HTree indexing (B-tree), but with millions of entries in a single directory, `openat()` latency increases from ~2 us to ~50+ us.
+- **Directory performance:** Linux ext4 uses HTree indexing (hash-based B-tree) which provides O(1) amortized lookup, but with millions of entries the hash tree depth increases, cache miss rates rise, and `openat()` latency degrades from ~2 us to ~10--50 us due to cold cache effects on the HTree blocks.
 - **Metadata overhead:** Each inode is 256 bytes. 10^9 files = 256 GB of metadata alone.
 
 ### 5.3 Why a Single File Has Operational Limits
